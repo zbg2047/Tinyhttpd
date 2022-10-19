@@ -620,7 +620,7 @@ int create_tpool(tpool_t **pool, size_t max_thread_num)
     (*pool) = (tpool_t *)malloc(sizeof(tpool_t));
     if (NULL == *pool)
     {
-        printf("in %s,malloc tpool_t failed!,errno = %d,explain:%s\n", __func__, errno, strerror(errno));
+        printf("malloc tpool_t failed!\n");
         exit(-1);
     }
     (*pool)->shutdown = 0;
@@ -628,19 +628,19 @@ int create_tpool(tpool_t **pool, size_t max_thread_num)
     (*pool)->thread_id = (pthread_t *)malloc(sizeof(pthread_t) * max_thread_num);
     if ((*pool)->thread_id == NULL)
     {
-        printf("in %s,init thread id failed,errno = %d,explain:%s", __func__, errno, strerror(errno));
+        printf("init thread id failed");
         exit(-1);
     }
     (*pool)->tpool_head = NULL;
     if (pthread_mutex_init(&((*pool)->queue_lock), NULL) != 0)
     {
-        printf("in %s,initial mutex failed,errno = %d,explain:%s", __func__, errno, strerror(errno));
+        printf("initial mutex failed");
         exit(-1);
     }
 
     if (pthread_cond_init(&((*pool)->queue_ready), NULL) != 0)
     {
-        printf("in %s,initial condition variable failed,errno = %d,explain:%s", __func__, errno, strerror(errno));
+        printf("initial condition variable failed");
         exit(-1);
     }
 
@@ -699,7 +699,7 @@ int add_task_to_tpool(tpool_t *pool, void *(*routine)(void *), void *args)
     work = (tpool_work_t *)malloc(sizeof(tpool_work_t));
     if (!work)
     {
-        printf("in %s,malloc work error!,errno = %d,explain:%s\n", __func__, errno, strerror(errno));
+        printf("malloc work error!");
         return -1;
     }
 
@@ -757,9 +757,9 @@ int main(void)
         if (client_sock == -1)
             error_die("accept");
         /* accept_request(&client_sock); */
-        add_task_to_tpool(pool, accept_request ,(void*)client_sock );
+        add_task_to_tpool(pool, accept_request, (void*)client_sock );
         //if (pthread_create(&newthread, NULL, (void *)accept_request, (void *)(intptr_t)client_sock) != 0)
-        perror("pthread_create");
+        //perror("pthread_create");
     }
 
     close(server_sock);

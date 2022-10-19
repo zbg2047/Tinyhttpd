@@ -68,14 +68,17 @@ void accept_request(void *arg)
 
     numchars = get_line(client, buf, sizeof(buf));
     i = 0; j = 0;
+    // copy buf to method
     while (!ISspace(buf[i]) && (i < sizeof(method) - 1))
     {
         method[i] = buf[i];
         i++;
     }
     j=i;
+    // method end with null character
     method[i] = '\0';
 
+    // only accpet GET and POST request
     if (strcasecmp(method, "GET") && strcasecmp(method, "POST"))
     {
         unimplemented(client);
@@ -109,8 +112,12 @@ void accept_request(void *arg)
     }
 
     sprintf(path, "htdocs%s", url);
+    // if url end with '/'
     if (path[strlen(path) - 1] == '/')
+        // default is index
         strcat(path, "index.html");
+
+    // copy file from path to st, if fail
     if (stat(path, &st) == -1) {
         while ((numchars > 0) && strcmp("\n", buf))  /* read & discard headers */
             numchars = get_line(client, buf, sizeof(buf));
@@ -141,6 +148,7 @@ void bad_request(int client)
 {
     char buf[1024];
 
+    // output error message
     sprintf(buf, "HTTP/1.0 400 BAD REQUEST\r\n");
     send(client, buf, sizeof(buf), 0);
     sprintf(buf, "Content-type: text/html\r\n");
@@ -164,10 +172,16 @@ void cat(int client, FILE *resource)
 {
     char buf[1024];
 
+    // read from file and write to buffer
     fgets(buf, sizeof(buf), resource);
+
+    // Loop until end of file
     while (!feof(resource))
     {
+        // send buffer to client
         send(client, buf, strlen(buf), 0);
+
+        // read from file and write to buffer
         fgets(buf, sizeof(buf), resource);
     }
 }
@@ -180,6 +194,7 @@ void cannot_execute(int client)
 {
     char buf[1024];
 
+    // output error message
     sprintf(buf, "HTTP/1.0 500 Internal Server Error\r\n");
     send(client, buf, strlen(buf), 0);
     sprintf(buf, "Content-type: text/html\r\n");
@@ -197,7 +212,11 @@ void cannot_execute(int client)
 /**********************************************************************/
 void error_die(const char *sc)
 {
+    // print error message
+    // sc is the string that is printed
     perror(sc);
+    
+    // exit program with error
     exit(1);
 }
 
@@ -220,21 +239,35 @@ void execute_cgi(int client, const char *path,
     int numchars = 1;
     int content_length = -1;
 
+    // initialize buffer
     buf[0] = 'A'; buf[1] = '\0';
+
+    // if method is GET, read and discard headers
     if (strcasecmp(method, "GET") == 0)
+        // while buffer is not empty and not end of header
         while ((numchars > 0) && strcmp("\n", buf))  /* read & discard headers */
+            // read from client and write to buffer
             numchars = get_line(client, buf, sizeof(buf));
+    // if method is POST, read content length 
     else if (strcasecmp(method, "POST") == 0) /*POST*/
     {
+        // read from client and write to buffer
         numchars = get_line(client, buf, sizeof(buf));
+
+        // while buffer is not empty and not end of header
         while ((numchars > 0) && strcmp("\n", buf))
         {
             buf[15] = '\0';
+            // if contxt of buffer is "Content-Length:"
             if (strcasecmp(buf, "Content-Length:") == 0)
+                // get content length
                 content_length = atoi(&(buf[16]));
+            // read from client and write to buffer
             numchars = get_line(client, buf, sizeof(buf));
         }
+        // if the begin of buffer is not "Content-Length:"
         if (content_length == -1) {
+            // send bad request
             bad_request(client);
             return;
         }
@@ -243,57 +276,85 @@ void execute_cgi(int client, const char *path,
     {
     }
 
-
+    // if output pipe fails
     if (pipe(cgi_output) < 0) {
+        // send error message
         cannot_execute(client);
         return;
     }
+    // if input pipe fails
     if (pipe(cgi_input) < 0) {
         cannot_execute(client);
         return;
     }
 
+    // fork process
     if ( (pid = fork()) < 0 ) {
         cannot_execute(client);
         return;
     }
+
+    // send HTTP header
     sprintf(buf, "HTTP/1.0 200 OK\r\n");
     send(client, buf, strlen(buf), 0);
+
+    // if child process
     if (pid == 0)  /* child: CGI script */
     {
         char meth_env[255];
         char query_env[255];
         char length_env[255];
 
+        // duplicate pipe
         dup2(cgi_output[1], STDOUT);
         dup2(cgi_input[0], STDIN);
+
+        // close pipe
         close(cgi_output[0]);
         close(cgi_input[1]);
+
+        // output method name
         sprintf(meth_env, "REQUEST_METHOD=%s", method);
         putenv(meth_env);
+
+        // if method is GET
         if (strcasecmp(method, "GET") == 0) {
+            // output query string
             sprintf(query_env, "QUERY_STRING=%s", query_string);
             putenv(query_env);
         }
+        // if method is POST
         else {   /* POST */
+            // output content length
             sprintf(length_env, "CONTENT_LENGTH=%d", content_length);
             putenv(length_env);
         }
+        // execute CGI script
         execl(path, NULL);
         exit(0);
+    
+    // if parent process
     } else {    /* parent */
+        // close pipe
         close(cgi_output[1]);
         close(cgi_input[0]);
+
+        // if method is POST
         if (strcasecmp(method, "POST") == 0)
+            // send content to CGI script
             for (i = 0; i < content_length; i++) {
+                // read from client and write to input pipe
                 recv(client, &c, 1, 0);
                 write(cgi_input[1], &c, 1);
             }
+        // read from output pipe and write to client
         while (read(cgi_output[0], &c, 1) > 0)
             send(client, &c, 1, 0);
 
+        // close pipe
         close(cgi_output[0]);
         close(cgi_input[1]);
+        // wait for child process to finish
         waitpid(pid, &status, 0);
     }
 }
@@ -319,6 +380,7 @@ int get_line(int sock, char *buf, int size)
 
     while ((i < size - 1) && (c != '\n'))
     {
+        // n is number of size receive by client(in byte)
         n = recv(sock, &c, 1, 0);
         /* DEBUG printf("%02X\n", c); */
         if (n > 0)
@@ -353,6 +415,7 @@ void headers(int client, const char *filename)
     char buf[1024];
     (void)filename;  /* could use filename to determine file type */
 
+    // print out the HTTP header
     strcpy(buf, "HTTP/1.0 200 OK\r\n");
     send(client, buf, strlen(buf), 0);
     strcpy(buf, SERVER_STRING);
@@ -370,6 +433,7 @@ void not_found(int client)
 {
     char buf[1024];
 
+    // print the error message
     sprintf(buf, "HTTP/1.0 404 NOT FOUND\r\n");
     send(client, buf, strlen(buf), 0);
     sprintf(buf, SERVER_STRING);
@@ -466,6 +530,7 @@ void unimplemented(int client)
 {
     char buf[1024];
 
+    // print the error message
     sprintf(buf, "HTTP/1.0 501 Method Not Implemented\r\n");
     send(client, buf, strlen(buf), 0);
     sprintf(buf, SERVER_STRING);
@@ -500,6 +565,7 @@ int main(void)
 
     while (1)
     {
+        // connect to client
         client_sock = accept(server_sock,
                 (struct sockaddr *)&client_name,
                 &client_name_len);

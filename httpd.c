@@ -30,9 +30,9 @@
 #define ISspace(x) isspace((int)(x))
 
 #define SERVER_STRING "Server: jdbhttpd/0.1.0\r\n"
-#define STDIN   0
-#define STDOUT  1
-#define STDERR  2
+#define STDIN 0
+#define STDOUT 1
+#define STDERR 2
 
 void accept_request(void *);
 void bad_request(int);
@@ -62,19 +62,20 @@ void accept_request(void *arg)
     char path[512];
     size_t i, j;
     struct stat st;
-    int cgi = 0;      /* becomes true if server decides this is a CGI
-                       * program */
+    int cgi = 0; /* becomes true if server decides this is a CGI
+                  * program */
     char *query_string = NULL;
 
     numchars = get_line(client, buf, sizeof(buf));
-    i = 0; j = 0;
+    i = 0;
+    j = 0;
     // copy buf to method
     while (!ISspace(buf[i]) && (i < sizeof(method) - 1))
     {
         method[i] = buf[i];
         i++;
     }
-    j=i;
+    j = i;
     // method end with null character
     method[i] = '\0';
 
@@ -94,7 +95,8 @@ void accept_request(void *arg)
     while (!ISspace(buf[j]) && (i < sizeof(url) - 1) && (j < numchars))
     {
         url[i] = buf[j];
-        i++; j++;
+        i++;
+        j++;
     }
     url[i] = '\0';
 
@@ -118,8 +120,9 @@ void accept_request(void *arg)
         strcat(path, "index.html");
 
     // copy file from path to st, if fail
-    if (stat(path, &st) == -1) {
-        while ((numchars > 0) && strcmp("\n", buf))  /* read & discard headers */
+    if (stat(path, &st) == -1)
+    {
+        while ((numchars > 0) && strcmp("\n", buf)) /* read & discard headers */
             numchars = get_line(client, buf, sizeof(buf));
         not_found(client);
     }
@@ -128,8 +131,8 @@ void accept_request(void *arg)
         if ((st.st_mode & S_IFMT) == S_IFDIR)
             strcat(path, "/index.html");
         if ((st.st_mode & S_IXUSR) ||
-                (st.st_mode & S_IXGRP) ||
-                (st.st_mode & S_IXOTH)    )
+            (st.st_mode & S_IXGRP) ||
+            (st.st_mode & S_IXOTH))
             cgi = 1;
         if (!cgi)
             serve_file(client, path);
@@ -215,7 +218,7 @@ void error_die(const char *sc)
     // print error message
     // sc is the string that is printed
     perror(sc);
-    
+
     // exit program with error
     exit(1);
 }
@@ -227,7 +230,7 @@ void error_die(const char *sc)
  *             path to the CGI script */
 /**********************************************************************/
 void execute_cgi(int client, const char *path,
-        const char *method, const char *query_string)
+                 const char *method, const char *query_string)
 {
     char buf[1024];
     int cgi_output[2];
@@ -240,15 +243,16 @@ void execute_cgi(int client, const char *path,
     int content_length = -1;
 
     // initialize buffer
-    buf[0] = 'A'; buf[1] = '\0';
+    buf[0] = 'A';
+    buf[1] = '\0';
 
     // if method is GET, read and discard headers
     if (strcasecmp(method, "GET") == 0)
         // while buffer is not empty and not end of header
-        while ((numchars > 0) && strcmp("\n", buf))  /* read & discard headers */
+        while ((numchars > 0) && strcmp("\n", buf)) /* read & discard headers */
             // read from client and write to buffer
             numchars = get_line(client, buf, sizeof(buf));
-    // if method is POST, read content length 
+    // if method is POST, read content length
     else if (strcasecmp(method, "POST") == 0) /*POST*/
     {
         // read from client and write to buffer
@@ -266,30 +270,34 @@ void execute_cgi(int client, const char *path,
             numchars = get_line(client, buf, sizeof(buf));
         }
         // if the begin of buffer is not "Content-Length:"
-        if (content_length == -1) {
+        if (content_length == -1)
+        {
             // send bad request
             bad_request(client);
             return;
         }
     }
-    else/*HEAD or other*/
+    else /*HEAD or other*/
     {
     }
 
     // if output pipe fails
-    if (pipe(cgi_output) < 0) {
+    if (pipe(cgi_output) < 0)
+    {
         // send error message
         cannot_execute(client);
         return;
     }
     // if input pipe fails
-    if (pipe(cgi_input) < 0) {
+    if (pipe(cgi_input) < 0)
+    {
         cannot_execute(client);
         return;
     }
 
     // fork process
-    if ( (pid = fork()) < 0 ) {
+    if ((pid = fork()) < 0)
+    {
         cannot_execute(client);
         return;
     }
@@ -299,7 +307,7 @@ void execute_cgi(int client, const char *path,
     send(client, buf, strlen(buf), 0);
 
     // if child process
-    if (pid == 0)  /* child: CGI script */
+    if (pid == 0) /* child: CGI script */
     {
         char meth_env[255];
         char query_env[255];
@@ -318,13 +326,15 @@ void execute_cgi(int client, const char *path,
         putenv(meth_env);
 
         // if method is GET
-        if (strcasecmp(method, "GET") == 0) {
+        if (strcasecmp(method, "GET") == 0)
+        {
             // output query string
             sprintf(query_env, "QUERY_STRING=%s", query_string);
             putenv(query_env);
         }
         // if method is POST
-        else {   /* POST */
+        else
+        { /* POST */
             // output content length
             sprintf(length_env, "CONTENT_LENGTH=%d", content_length);
             putenv(length_env);
@@ -332,9 +342,11 @@ void execute_cgi(int client, const char *path,
         // execute CGI script
         execl(path, NULL);
         exit(0);
-    
-    // if parent process
-    } else {    /* parent */
+
+        // if parent process
+    }
+    else
+    { /* parent */
         // close pipe
         close(cgi_output[1]);
         close(cgi_input[0]);
@@ -342,7 +354,8 @@ void execute_cgi(int client, const char *path,
         // if method is POST
         if (strcasecmp(method, "POST") == 0)
             // send content to CGI script
-            for (i = 0; i < content_length; i++) {
+            for (i = 0; i < content_length; i++)
+            {
                 // read from client and write to input pipe
                 recv(client, &c, 1, 0);
                 write(cgi_input[1], &c, 1);
@@ -402,7 +415,7 @@ int get_line(int sock, char *buf, int size)
     }
     buf[i] = '\0';
 
-    return(i);
+    return (i);
 }
 
 /**********************************************************************/
@@ -413,7 +426,7 @@ int get_line(int sock, char *buf, int size)
 void headers(int client, const char *filename)
 {
     char buf[1024];
-    (void)filename;  /* could use filename to determine file type */
+    (void)filename; /* could use filename to determine file type */
 
     // print out the HTTP header
     strcpy(buf, "HTTP/1.0 200 OK\r\n");
@@ -467,8 +480,9 @@ void serve_file(int client, const char *filename)
     int numchars = 1;
     char buf[1024];
 
-    buf[0] = 'A'; buf[1] = '\0';
-    while ((numchars > 0) && strcmp("\n", buf))  /* read & discard headers */
+    buf[0] = 'A';
+    buf[1] = '\0';
+    while ((numchars > 0) && strcmp("\n", buf)) /* read & discard headers */
         numchars = get_line(client, buf, sizeof(buf));
 
     resource = fopen(filename, "r");
@@ -503,13 +517,13 @@ int startup(u_short *port)
     name.sin_family = AF_INET;
     name.sin_port = htons(*port);
     name.sin_addr.s_addr = htonl(INADDR_ANY);
-    if ((setsockopt(httpd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on))) < 0)  
-    {  
+    if ((setsockopt(httpd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on))) < 0)
+    {
         error_die("setsockopt failed");
     }
     if (bind(httpd, (struct sockaddr *)&name, sizeof(name)) < 0)
         error_die("bind");
-    if (*port == 0)  /* if dynamically allocating a port */
+    if (*port == 0) /* if dynamically allocating a port */
     {
         socklen_t namelen = sizeof(name);
         if (getsockname(httpd, (struct sockaddr *)&name, &namelen) == -1)
@@ -518,7 +532,7 @@ int startup(u_short *port)
     }
     if (listen(httpd, 5) < 0)
         error_die("listen");
-    return(httpd);
+    return (httpd);
 }
 
 /**********************************************************************/
@@ -549,6 +563,171 @@ void unimplemented(int client)
     send(client, buf, strlen(buf), 0);
 }
 
+/****************************/
+/**********thread pool*******/
+/****************************/
+
+typedef struct tpool_work{
+   void* (*work_routine)(void*); //function to be called
+   void* args;                   //arguments 
+   struct tool_work* next;
+}tpool_work_t;
+ 
+typedef struct tpool{
+   size_t               shutdown;       //is tpool shutdown or not, 1 ---> yes; 0 ---> no
+   size_t               maxnum_thread;  // maximum of threads
+   pthread_t            *thread_id;     // a array of threads
+   tpool_work_t*        tpool_head;     // tpool_work queue
+   pthread_cond_t       queue_ready;    // condition varaible
+   pthread_mutex_t      queue_lock;     // queue lock
+}tpool_t;
+
+static void *work_routine(void *args)
+{
+    tpool_t *pool = (tpool_t *)args;
+    tpool_work_t *work = NULL;
+
+    while (1)
+    {
+        pthread_mutex_lock(&pool->queue_lock);
+        // if there is no works and pool is not shutdown, it should be suspended for being awake
+        while (!pool->tpool_head && !pool->shutdown)
+        { 
+            pthread_cond_wait(&pool->queue_ready, &pool->queue_lock);
+        }
+
+        if (pool->shutdown)
+        {
+            // pool shutdown,release the mutex and exit
+            pthread_mutex_unlock(&pool->queue_lock); 
+            pthread_exit(NULL);
+        }
+
+        /* tweak a work*/
+        work = pool->tpool_head;
+        pool->tpool_head = (tpool_work_t *)pool->tpool_head->next;
+        pthread_mutex_unlock(&pool->queue_lock);
+
+        work->work_routine(work->args);
+
+        free(work);
+    }
+    return NULL;
+}
+
+int create_tpool(tpool_t **pool, size_t max_thread_num)
+{
+    (*pool) = (tpool_t *)malloc(sizeof(tpool_t));
+    if (NULL == *pool)
+    {
+        printf("in %s,malloc tpool_t failed!,errno = %d,explain:%s\n", __func__, errno, strerror(errno));
+        exit(-1);
+    }
+    (*pool)->shutdown = 0;
+    (*pool)->maxnum_thread = max_thread_num;
+    (*pool)->thread_id = (pthread_t *)malloc(sizeof(pthread_t) * max_thread_num);
+    if ((*pool)->thread_id == NULL)
+    {
+        printf("in %s,init thread id failed,errno = %d,explain:%s", __func__, errno, strerror(errno));
+        exit(-1);
+    }
+    (*pool)->tpool_head = NULL;
+    if (pthread_mutex_init(&((*pool)->queue_lock), NULL) != 0)
+    {
+        printf("in %s,initial mutex failed,errno = %d,explain:%s", __func__, errno, strerror(errno));
+        exit(-1);
+    }
+
+    if (pthread_cond_init(&((*pool)->queue_ready), NULL) != 0)
+    {
+        printf("in %s,initial condition variable failed,errno = %d,explain:%s", __func__, errno, strerror(errno));
+        exit(-1);
+    }
+
+    for (int i = 0; i < max_thread_num; i++)
+    {
+        if (pthread_create(&((*pool)->thread_id[i]), NULL, work_routine, (void *)(*pool)) != 0)
+        {
+            printf("pthread_create failed!\n");
+            exit(-1);
+        }
+    }
+    return 0;
+}
+
+void destroy_tpool(tpool_t *pool)
+{
+    tpool_work_t *tmp_work;
+
+    if (pool->shutdown)
+    {
+        return;
+    }
+    pool->shutdown = 1;
+
+    pthread_mutex_lock(&pool->queue_lock);
+    pthread_cond_broadcast(&pool->queue_ready);
+    pthread_mutex_unlock(&pool->queue_lock);
+
+    for (int i = 0; i < pool->maxnum_thread; i++)
+    {
+        pthread_join(pool->thread_id[i], NULL);
+    }
+    free(pool->thread_id);
+    while (pool->tpool_head)
+    {
+        tmp_work = pool->tpool_head;
+        pool->tpool_head = (tpool_work_t *)pool->tpool_head->next;
+        free(tmp_work);
+    }
+
+    pthread_mutex_destroy(&pool->queue_lock);
+    pthread_cond_destroy(&pool->queue_ready);
+    free(pool);
+}
+
+int add_task_to_tpool(tpool_t *pool, void *(*routine)(void *), void *args)
+{
+    tpool_work_t *work, *member;
+
+    if (!routine)
+    {
+        printf("rontine is null!\n");
+        return -1;
+    }
+
+    work = (tpool_work_t *)malloc(sizeof(tpool_work_t));
+    if (!work)
+    {
+        printf("in %s,malloc work error!,errno = %d,explain:%s\n", __func__, errno, strerror(errno));
+        return -1;
+    }
+
+    work->work_routine = routine;
+    work->args = args;
+    work->next = NULL;
+
+    pthread_mutex_lock(&pool->queue_lock);
+    member = pool->tpool_head;
+    if (!member)
+    {
+        pool->tpool_head = work;
+    }
+    else
+    {
+        while (member->next)
+        {
+            member = (tpool_work_t *)member->next;
+        }
+        member->next = work;
+    }
+
+    // notify the pool that new task arrived!
+    pthread_cond_signal(&pool->queue_ready);
+    pthread_mutex_unlock(&pool->queue_lock);
+    return 0;
+}
+
 /**********************************************************************/
 
 int main(void)
@@ -557,26 +736,34 @@ int main(void)
     u_short port = 4000;
     int client_sock = -1;
     struct sockaddr_in client_name;
-    socklen_t  client_name_len = sizeof(client_name);
+    socklen_t client_name_len = sizeof(client_name);
     pthread_t newthread;
 
     server_sock = startup(&port);
     printf("httpd running on port %d\n", port);
 
+    // create thread pool
+    tpool_t* pool = NULL;
+    if(0 != create_tpool(&pool, 10)){
+        printf("create_tpool failed!\n");
+        return -1;
+    }
     while (1)
     {
         // connect to client
         client_sock = accept(server_sock,
-                (struct sockaddr *)&client_name,
-                &client_name_len);
+                             (struct sockaddr *)&client_name,
+                             &client_name_len);
         if (client_sock == -1)
             error_die("accept");
         /* accept_request(&client_sock); */
-        if (pthread_create(&newthread , NULL, (void *)accept_request, (void *)(intptr_t)client_sock) != 0)
-            perror("pthread_create");
+        add_task_to_tpool(pool, accept_request ,(void*)client_sock );
+        //if (pthread_create(&newthread, NULL, (void *)accept_request, (void *)(intptr_t)client_sock) != 0)
+        perror("pthread_create");
     }
 
     close(server_sock);
+    destroy_tpool(pool);
 
-    return(0);
+    return (0);
 }

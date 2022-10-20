@@ -590,12 +590,13 @@ static void *work_routine(void *args)
     while (1)
     {
         pthread_mutex_lock(&pool->queue_lock);
-        // if there is no works and pool is not shutdown, it should be suspended for being awake
+        // if there is no works in queue and pool is not shutdown, thread should be suspended for being awake
         while (!pool->tpool_head && !pool->shutdown)
         { 
             pthread_cond_wait(&pool->queue_ready, &pool->queue_lock);
         }
 
+        // if pool is shutdown, thread should exit
         if (pool->shutdown)
         {
             // pool shutdown,release the mutex and exit
@@ -603,7 +604,7 @@ static void *work_routine(void *args)
             pthread_exit(NULL);
         }
 
-        /* tweak a work*/
+        // get the work from the queue
         work = pool->tpool_head;
         pool->tpool_head = (tpool_work_t *)pool->tpool_head->next;
         pthread_mutex_unlock(&pool->queue_lock);
@@ -644,6 +645,7 @@ int create_tpool(tpool_t **pool, size_t max_thread_num)
         exit(-1);
     }
 
+    // create
     for (size_t i = 0; i < max_thread_num; i++)
     {
         if (pthread_create(&((*pool)->thread_id[i]), NULL, work_routine, (void *)(*pool)) != 0)
@@ -669,11 +671,14 @@ void destroy_tpool(tpool_t *pool)
     pthread_cond_broadcast(&pool->queue_ready);
     pthread_mutex_unlock(&pool->queue_lock);
 
+    // wait for all threads to exit
     for (size_t i = 0; i < pool->maxnum_thread; i++)
     {
         pthread_join(pool->thread_id[i], NULL);
     }
     free(pool->thread_id);
+
+    // free memory
     while (pool->tpool_head)
     {
         tmp_work = pool->tpool_head;
@@ -703,6 +708,7 @@ int add_task_to_tpool(tpool_t *pool, void *(*routine)(void *), void *args)
         return -1;
     }
 
+    // add task to the queue
     work->work_routine = routine;
     work->args = args;
     work->next = NULL;
@@ -722,7 +728,7 @@ int add_task_to_tpool(tpool_t *pool, void *(*routine)(void *), void *args)
         member->next = work;
     }
 
-    // notify the pool that new task arrived!
+    // notify the pool there is a new task
     pthread_cond_signal(&pool->queue_ready);
     pthread_mutex_unlock(&pool->queue_lock);
     return 0;
@@ -732,6 +738,13 @@ int add_task_to_tpool(tpool_t *pool, void *(*routine)(void *), void *args)
 
 int main(void)
 {
+    printf(" #######   ######  ########  \n"
+           "##     ## ##    ## ##     ## \n"
+           "##     ## ##       ##     ## \n"
+           "##     ##  ######  ########  \n"
+           "##     ##       ## ##        \n"
+           "##     ## ##    ## ##        \n"
+           " #######   ######  ##        \n");
     int server_sock = -1;
     u_short port = 4000;
     int client_sock = -1;
@@ -744,7 +757,7 @@ int main(void)
 
     // create thread pool
     tpool_t* pool = NULL;
-    if(0 != create_tpool(&pool, 4)){
+    if(0 != create_tpool(&pool, 100)){
         printf("create_tpool failed!\n");
         return -1;
     }

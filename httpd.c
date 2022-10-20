@@ -744,7 +744,7 @@ int main(void)
 
     // create thread pool
     tpool_t* pool = NULL;
-    if(0 != create_tpool(&pool, 10)){
+    if(0 != create_tpool(&pool, 4)){
         printf("create_tpool failed!\n");
         return -1;
     }

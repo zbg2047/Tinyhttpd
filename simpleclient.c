@@ -4,8 +4,9 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <stdlib.h>
 
-int main(int argc, char *argv[])
+int main()
 {
     int sockfd;
     int len;

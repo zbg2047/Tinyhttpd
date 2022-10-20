@@ -644,7 +644,7 @@ int create_tpool(tpool_t **pool, size_t max_thread_num)
         exit(-1);
     }
 
-    for (int i = 0; i < max_thread_num; i++)
+    for (size_t i = 0; i < max_thread_num; i++)
     {
         if (pthread_create(&((*pool)->thread_id[i]), NULL, work_routine, (void *)(*pool)) != 0)
         {
@@ -669,7 +669,7 @@ void destroy_tpool(tpool_t *pool)
     pthread_cond_broadcast(&pool->queue_ready);
     pthread_mutex_unlock(&pool->queue_lock);
 
-    for (int i = 0; i < pool->maxnum_thread; i++)
+    for (size_t i = 0; i < pool->maxnum_thread; i++)
     {
         pthread_join(pool->thread_id[i], NULL);
     }
@@ -737,7 +737,7 @@ int main(void)
     int client_sock = -1;
     struct sockaddr_in client_name;
     socklen_t client_name_len = sizeof(client_name);
-    pthread_t newthread;
+    // pthread_t newthread;
 
     server_sock = startup(&port);
     printf("httpd running on port %d\n", port);
